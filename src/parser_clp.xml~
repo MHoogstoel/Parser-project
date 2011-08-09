@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<executable>
+  <title>Parser</title>
+  <description>
+  Parsers a few files together in order to have only one (first aim : be used for MIDAS project)
+  </description>
+
+
+  <parameters>
+    <label>Input Parameters</label>
+    <description>
+    parameters to give when you call the program
+    </description>
+    <file>
+	    <name>inputFilename</name>
+	    <flag>i</flag>
+	    <longflag>Input</longflag>
+	    <description>name of the to-be-parsered file.</description>
+	    <label>Input Filename</label>
+		<channel>input</channel>
+    </file>
+
+    <file>
+	    <name>outputFilename</name>
+	    <flag>o</flag>
+	    <longflag>Output</longflag>
+	    <description>name of the out file. The file has to exist</description>
+	    <label>Output Filename</label>
+		<channel>input</channel>
+    </file>
+
+</parameters>
+</executable>

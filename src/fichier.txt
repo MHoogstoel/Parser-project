@@ -1,0 +1,6 @@
+
+##ABC Priors
+set( PRIOR1 1)
+
+#include( /rodent/bin_linux64/MakeAtlas/SkullStrip/000SkullStrip.bms )
+include( deux.txt )

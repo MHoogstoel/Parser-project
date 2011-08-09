@@ -1,0 +1,1 @@
+/usr/bin/c++     -ftemplate-depth-50 -Wall -Wno-deprecated -msse2 -O2 -g    CMakeFiles/Parser.dir/main.cpp.o  -o Parser -rdynamic -L/tools/ITK/ITK_3.20.0/ITK_3.20.0_linux64_dyn/lib/InsightToolkit -L/opt/local/GenerateCLP/ModuleDescriptionParser_linux64_3_20 

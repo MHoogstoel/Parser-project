@@ -1,0 +1,367 @@
+
+########################################## 
+#INCLUDED FILE : ../src/000MakeAtlas.bms
+########################################## 
+
+
+########################################## 
+#INCLUDED FILE : 010SetUp.bms
+########################################## 
+
+
+RegEx( PARCELLATION_FILE_TAG ${PARCELLATION_FILE_NAME} '\..*' REPLACE '' )
+RegEx( DTI_TAG ${DTI_SUFFIX} '\..*' REPLACE '' )
+RegEx( ATLAS_INPUT_TAG ${ATLAS_INPUT_SUFFIX} '\..*' REPLACE '' )
+set( ATLAS_INPUT_MASKED_TAG ${ATLAS_INPUT_TAG}_masked_from_seg )
+
+MakeDirectory( ${tempDir} )
+
+
+########################################## 
+#END OF FILE : ../src/010SetUp.bms
+########################################## 
+
+
+########################################## 
+#INCLUDED FILE : 030ComputeAtlas.bms
+########################################## 
+
+MakeDirectory( ${atlasProcessDir} )
+foreach( i ${CASES} )
+  set (SubjDir ${dir}/${i})
+  MakeDirectory( ${SubjDir}/${PROCESS_SUBDIR} )
+  set( MD ${SubjDir}/${INPUT_SUB_DIR}/${i}${ATLAS_INPUT_SUFFIX} )
+  set( maskedMD ${atlasProcessDir}/${i}${ATLAS_INPUT_MASKED_TAG}.${extension} )
+  set( Cmd ${ImageMathDIR}ImageMath ${MD} -mask ${MASK} -outfile ${maskedMD} -type float)
+  echo( ${Cmd} )
+  run( output ${Cmd} )
+  echo( ${output} )
+endforeach( ${CASES} )
+GetParam(FIXED_CASE ${CASES} 0)
+set( FIXED_IMG ${atlasProcessDir}/${FIXED_CASE}${ATLAS_INPUT_MASKED_TAG}.${extension} )
+set( RESCALED_FIXED_IMG ${atlasProcessDir}/${FIXED_CASE}${ATLAS_INPUT_MASKED_TAG}_hm_resc.${extension} )
+
+########################################## 
+#INCLUDED FILE : 031AffineRegistration.bms
+########################################## 
+
+set( FIRST TRUE )
+set( TRANSFORM_LIST '')
+set( MD_CASES '' )
+set( ALL_OTHER_CASES '' )
+Set( image ${atlasProcessDir}/fixed.nrrd )
+set( Cmd ${ImageMathDIR}ImageMath ${FIXED_IMG} -rescale 0,10000 -type float -outfile ${RESCALED_FIXED_IMG} )
+run( output ${Cmd} )
+echo( ${output} )
+foreach( i ${CASES} )
+  set( IMG ${atlasProcessDir}/${i}${ATLAS_INPUT_MASKED_TAG}.${extension} )
+  set( MOVING_IMG ${atlasProcessDir}/${i}${ATLAS_INPUT_MASKED_TAG}_hm.${extension} )
+  set( HMCmd ${ImageMathDIR}ImageMath ${IMG} -matchHistogram ${RESCALED_FIXED_IMG} -outfile ${MOVING_IMG} -type float)
+  echo( ${HMCmd} )
+  run( output ${HMCmd} )
+  echo( ${output} )
+  set( TRANSFORM ${atlasProcessDir}/${i}${ATLAS_INPUT_MASKED_TAG}_to_${FIXED_CASE}.txt )
+  set( RESAMPLED_IMAGE ${atlasProcessDir}/${i}_to_${FIXED_CASE}.nrrd )
+  set( RegCmd ${RegisterImagesDIR}RegisterImages --initialization CentersOfMass --registration PipelineAffine --metric MattesMI ${RESCALED_FIXED_IMG} ${MOVING_IMG} --saveTransform ${TRANSFORM} --resampledImage ${RESAMPLED_IMAGE} )
+  echo( ${RegCmd} )
+  run( output ${RegCmd} )
+  echo( ${output} )
+  set( TRANSFORM_FLOAT ${atlasProcessDir}/${i}${ATLAS_INPUT_MASKED_TAG}_to_${FIXED_CASE}_f.txt )
+  set( Cmd ${Double2FloatTransformDIR}Double2FloatTransform ${TRANSFORM} ${TRANSFORM_FLOAT} )
+  echo( ${Cmd} )
+  run( output ${Cmd} )
+  echo( ${output} )
+  set( TRANSFORM_LIST ${TRANSFORM_LIST} ${TRANSFORM_FLOAT} )
+  set( MD_CASES ${MD_CASES} ${MOVING_IMG} )
+  if( ${FIRST} == TRUE )
+    set( FIRST_CASE ${RESAMPLED_IMAGE} )
+    set( FIRST FALSE )
+  else( ${FIRST} == TRUE )
+    set( ALL_OTHER_CASES ${RESAMPLED_IMAGE} ${ALL_OTHER_CASES} )
+  endif( ${FIRST} == TRUE )
+endforeach( ${CASES} )
+
+
+########################################## 
+#END OF FILE : ../src/031AffineRegistration.bms
+########################################## 
+
+set( avgImage ${atlasProcessDir}/AverageAffineImage.nrrd )
+set( Cmd ${ImageMathDIR}ImageMath ${FIRST_CASE} -avg ${ALL_OTHER_CASES} -outfile ${avgImage} )
+Run( output ${Cmd} )
+echo( ${output} )
+set(FIXED_CASE AverageAffineImage )
+set( FIXED_IMG ${avgImage} )
+set( RESCALED_FIXED_IMG ${atlasProcessDir}/AverageAffineImage_resc.nrrd )
+
+########################################## 
+#INCLUDED FILE : 031AffineRegistration.bms
+########################################## 
+
+set( FIRST TRUE )
+set( TRANSFORM_LIST '')
+set( MD_CASES '' )
+set( ALL_OTHER_CASES '' )
+Set( image ${atlasProcessDir}/fixed.nrrd )
+set( Cmd ${ImageMathDIR}ImageMath ${FIXED_IMG} -rescale 0,10000 -type float -outfile ${RESCALED_FIXED_IMG} )
+run( output ${Cmd} )
+echo( ${output} )
+foreach( i ${CASES} )
+  set( IMG ${atlasProcessDir}/${i}${ATLAS_INPUT_MASKED_TAG}.${extension} )
+  set( MOVING_IMG ${atlasProcessDir}/${i}${ATLAS_INPUT_MASKED_TAG}_hm.${extension} )
+  set( HMCmd ${ImageMathDIR}ImageMath ${IMG} -matchHistogram ${RESCALED_FIXED_IMG} -outfile ${MOVING_IMG} -type float)
+  echo( ${HMCmd} )
+  run( output ${HMCmd} )
+  echo( ${output} )
+  set( TRANSFORM ${atlasProcessDir}/${i}${ATLAS_INPUT_MASKED_TAG}_to_${FIXED_CASE}.txt )
+  set( RESAMPLED_IMAGE ${atlasProcessDir}/${i}_to_${FIXED_CASE}.nrrd )
+  set( RegCmd ${RegisterImagesDIR}RegisterImages --initialization CentersOfMass --registration PipelineAffine --metric MattesMI ${RESCALED_FIXED_IMG} ${MOVING_IMG} --saveTransform ${TRANSFORM} --resampledImage ${RESAMPLED_IMAGE} )
+  echo( ${RegCmd} )
+  run( output ${RegCmd} )
+  echo( ${output} )
+  set( TRANSFORM_FLOAT ${atlasProcessDir}/${i}${ATLAS_INPUT_MASKED_TAG}_to_${FIXED_CASE}_f.txt )
+  set( Cmd ${Double2FloatTransformDIR}Double2FloatTransform ${TRANSFORM} ${TRANSFORM_FLOAT} )
+  echo( ${Cmd} )
+  run( output ${Cmd} )
+  echo( ${output} )
+  set( TRANSFORM_LIST ${TRANSFORM_LIST} ${TRANSFORM_FLOAT} )
+  set( MD_CASES ${MD_CASES} ${MOVING_IMG} )
+  if( ${FIRST} == TRUE )
+    set( FIRST_CASE ${RESAMPLED_IMAGE} )
+    set( FIRST FALSE )
+  else( ${FIRST} == TRUE )
+    set( ALL_OTHER_CASES ${RESAMPLED_IMAGE} ${ALL_OTHER_CASES} )
+  endif( ${FIRST} == TRUE )
+endforeach( ${CASES} )
+
+
+########################################## 
+#END OF FILE : ../src/031AffineRegistration.bms
+########################################## 
+
+MakeDirectory( ${outputDir} )
+
+set( atlasWerksCmd ${AtlasWerksDIR}AtlasWerks --outputImageFilenamePrefix=${atlasProcessDir}/avg_ --outputDeformedImageFilenamePrefix=${atlasProcessDir}/deformedImage_ --outputHFieldFilenamePrefix=${atlasProcessDir}/h_ --scaleLevel=4 --numberOfIterations=200 --scaleLevel=2 --numberOfIterations=50 --scaleLevel=1 --numberOfIterations=25 ${MD_CASES} ${TRANSFORM_LIST} )
+
+echo (${atlasWerksCmd})
+run (output ${atlasWerksCmd})
+echo (${output})
+set( count 0 )
+foreach( i ${CASES} )
+  set (SubjDir ${dir}/${i})
+  if( ${TRANSFORM_SUFFIX} != '' )
+    set( combinedTransforms -f ${dir}/${i}/${i}${TRANSFORM_SUFFIX} )
+  else( ${TRANSFORM_SUFFIX} != '' )
+    set( combinedTransforms '' )
+  Endif( ${TRANSFORM_SUFFIX} != '' )
+  If( ${count} < 10 )
+    set( suffix 000${count} )
+  Endif( ${count} )
+  if( ${count} >= 10 AND ${count} < 100 )
+    set( suffix 00${count} )
+  Endif( ${count} )
+  if( ${count} >= 100 AND ${count} < 1000 )
+    set( suffix 0${count} )
+  Endif( ${count} )
+  if( ${count} >= 1000 )
+    set( suffix ${count} )
+  Endif( ${count} )
+  set( hfield ${atlasProcessDir}/h_${suffix}.mhd )
+  Set( COPIED_HFIELD ${SubjDir}/${PROCESS_SUBDIR}/${i}_hFieldToAtlas.mha )
+  Set( Cmd ${ResampleVolume2DIR}ResampleVolume2 ${hfield} ${COPIED_HFIELD} )
+  Run( output ${Cmd} )
+  echo( ${output} )
+  Inc(${count} 1)
+  Int( ${count} )
+endforeach( ${CASES} )
+if( ${IS_SCALAR} != TRUE )
+  set( ImageToRegTo ${MDFile} )
+  set( hmImage ${atlasProcessDir}/AverageTensor_MD_hm.${extension} )
+else( ${IS_SCALAR} != TRUE )
+
+########################################## 
+#INCLUDED FILE : blabla/033Histogram.bms
+########################################## 
+
+Set(count 0)
+
+IF (${HISTOGRAM_MATCH} == FALSE)
+
+  foreach( i ${CASES} )
+    Set( SubjDir ${dir}/${i})
+    Set( hfield ${SubjDir}/${PROCESS_SUBDIR}/${i}_hFieldToAtlas.mha )
+    Set( MD ${atlasProcessDir}/${i}${ATLAS_INPUT_MASKED_TAG}.${extension} )
+    Set( TRANSFORMED_MD ${atlasProcessDir}/${i}_SS.${extension} )
+    set( ResampleCmd ${ResampleVolume2DIR}ResampleVolume2 ${MD} ${TRANSFORMED_MD} -H ${hfield})
+    echo( ${ResampleCmd} )
+    run( output ${ResampleCmd} )
+    echo( ${output} )
+
+    Set( NSS_MD ${SubjDir}/${INPUT_SUB_DIR}/${i}${ATLAS_INPUT_SUFFIX} )
+    Set( TRANSFORMED_NSS_MD ${atlasProcessDir}/${i}_NSS.${extension} )
+    set( ResampleCmd ${ResampleVolume2DIR}ResampleVolume2 ${NSS_MD} ${TRANSFORMED_NSS_MD} -H ${hfield})
+    echo( ${ResampleCmd} )
+    run( output ${ResampleCmd} )
+    echo( ${output} )
+
+    if( ${count} == 0 )
+      Set( FIRST_MDIMAGES ${TRANSFORMED_MD} )
+      Set( FIRST_NSS_MDIMAGES ${TRANSFORMED_NSS_MD} )    
+    else( ${count} == 0 )
+      Set( LIST_MDIMAGES ${LIST_MDIMAGES} ${TRANSFORMED_MD} )
+      Set( LIST_NSS_MDIMAGES ${LIST_NSS_MDIMAGES} ${TRANSFORMED_NSS_MD} )
+    endif( ${count} == 0 )
+    Inc(${count} 1)
+    Int( ${count} )
+  endforeach( ${CASES} )
+
+  set( AtlasSS ${outputDir}/AverageImage_SS.${extension} )
+  Set( Cmd ${ImageMathDIR}ImageMath ${FIRST_MDIMAGES} -avg ${LIST_MDIMAGES} -outfile ${AtlasSS} -type float )
+  Run( output ${Cmd} )
+  echo( ${output} )
+
+  set( AtlasNSS ${outputDir}/AverageImage_NSS.${extension} )
+  Set( Cmd ${ImageMathDIR}ImageMath ${FIRST_NSS_MDIMAGES} -avg ${LIST_NSS_MDIMAGES} -outfile ${AtlasNSS} -type float )
+  Run( output ${Cmd} )
+  echo( ${output} )
+
+ELSE (${HISTOGRAM_MATCH} == FALSE)
+  IF(${HISTOGRAM_MATCH} == TRUE)
+    foreach( i ${CASES} )
+    Set( SubjDir ${dir}/${i})
+    Set( hfield ${SubjDir}/${PROCESS_SUBDIR}/${i}_hFieldToAtlas.mha )
+    Set( MD ${atlasProcessDir}/${i}${ATLAS_INPUT_MASKED_TAG}.${extension} ) <-- a changer pourlautre cas (copier sortie de latlas)
+    Set( TRANSFORMED_MD ${atlasProcessDir}/${i}_SS.${extension} )
+    set( ResampleCmd ${ResampleVolume2DIR}ResampleVolume2 ${MD} ${TRANSFORMED_MD} -H ${hfield})
+    echo( ${ResampleCmd} )
+    run( output ${ResampleCmd} )
+    echo( ${output} )
+
+    Set( NSS_MD ${SubjDir}/${INPUT_SUB_DIR}/${i}${ATLAS_INPUT_SUFFIX} )
+    Set( TRANSFORMED_NSS_MD ${atlasProcessDir}/${i}_NSS.${extension} )
+    set( ResampleCmd ${ResampleVolume2DIR}ResampleVolume2 ${NSS_MD} ${TRANSFORMED_NSS_MD} -H ${hfield})
+    echo( ${ResampleCmd} )
+    run( output ${ResampleCmd} )
+    echo( ${output} )
+
+    if( ${count} == 0 )
+      Set( FIRST_MDIMAGES ${TRANSFORMED_MD} )
+      Set( FIRST_NSS_MDIMAGES ${TRANSFORMED_NSS_MD} )
+    else( ${count} == 0 )
+      Set( LIST_MDIMAGES ${LIST_MDIMAGES} ${TRANSFORMED_MD} )
+      Set( LIST_NSS_MDIMAGES ${LIST_NSS_MDIMAGES} ${TRANSFORMED_NSS_MD} )
+    endif( ${count} == 0 )
+    Inc(${count} 1)
+    Int( ${count} )
+    endforeach( ${CASES} )
+
+  set( Histo ${ResampleVolume2DIR}ResampleVolume2 ${atlasProcessDir}/avg_2.mhd ${outputDir}/AverageImage_SS.${extension} -i nn)
+
+  set( AtlasSS ${outputDir}/AverageImage_SS.${extension} )
+  Set( Cmd ${ImageMathDIR}ImageMath ${FIRST_MDIMAGES} -avg ${LIST_MDIMAGES} -outfile ${AtlasSS} -type float )
+  Run( output ${Cmd} )
+  echo( ${output} )
+
+  set( AtlasNSS ${outputDir}/AverageImage_NSS.${extension} )
+  Set( Cmd ${ImageMathDIR}ImageMath ${FIRST_NSS_MDIMAGES} -avg ${LIST_NSS_MDIMAGES} -outfile ${AtlasNSS} -type float )
+  Run( output ${Cmd} )
+  echo( ${output} )
+  ENDIF (${HISTOGRAM_MATCH} == TRUE)
+ENDIF (${HISTOGRAM_MATCH} == FALSE)
+
+
+########################################## 
+#END OF FILE : ../src/blabla/033Histogram.bms
+########################################## 
+
+  echo(' ')
+  echo(' ')
+  echo(' ')
+  echo(' ')
+  echo(' ')
+  echo(' ')
+  echo(' suis la ')
+  echo(' suis la ')
+  echo(' suis la ')
+  echo(' suis la ')
+  echo(' suis la ')
+  echo(' ')
+  echo(' ')
+  echo(' ')
+  echo(' ')
+  echo(' ')
+  echo(' ')
+  set( ImageToRegTo ${outputDir}/AverageImage_SS.${extension} )
+  set( hmImage ${atlasProcessDir}/AverageImage_hm.${extension} )
+Endif( ${IS_SCALAR} != TRUE )
+set( TemplateFile ${ATLAS_DIR}/${TEMPLATE} )
+set( PARCELLATIONFile ${ATLAS_DIR}/${PARCELLATION_FILE_NAME} )
+IF( ${IS_SCALED} == TRUE )
+  set( Cmd ${ITKTransformToolsDIR}ITKTransformTools scale ${IMAGE_GRID} ${TemplateFile} ${atlasProcessDir}/ImageGrid.nrrd ${atlasProcessDir}/AtlasGrid.nrrd )
+  run( output ${Cmd} )
+  echo( ${output} )
+  set( Cmd ${ResampleVolume2DIR}ResampleVolume2 ${TemplateFile} -R ${atlasProcessDir}/AtlasGrid.nrrd ${atlasProcessDir}/TemplateResampled.nrrd )
+  run( output ${Cmd} )
+  echo( ${output} )
+  Set( Cmd ${ImageMathDIR}ImageMath ${atlasProcessDir}/TemplateResampled.nrrd -changeSp 1,1,1 -outfile ${atlasProcessDir}/TemplateResampled.nrrd -type float )
+  run( output ${Cmd} )
+  echo( ${output} )
+  set( TemplateFile ${atlasProcessDir}/TemplateResampled.nrrd )
+  set( Cmd ${ResampleVolume2DIR}ResampleVolume2 ${PARCELLATIONFile} -R ${atlasProcessDir}/AtlasGrid.nrrd ${atlasProcessDir}/AtlasResampled.nrrd -i nn )
+  run( output ${Cmd} )
+  echo( ${output} )
+  Set( Cmd ${ImageMathDIR}ImageMath ${atlasProcessDir}/AtlasResampled.nrrd -changeSp 1,1,1 -outfile ${atlasProcessDir}/AtlasResampled.nrrd -type float )
+  run( output ${Cmd} )
+  echo( ${output} )
+  set( PARCELLATIONFile ${atlasProcessDir}/AtlasResampled.nrrd )
+ENDIF( ${IS_SCALED} == TRUE )
+
+
+IF(${TRANSF_TYPE} == 0)
+
+  set( TRANSFORM ${atlasProcessDir}/OldtoNewMDAtlas.txt )
+  set( REGIMG ${atlasProcessDir}/OldtoNewMDAtlas.${extension} )
+  set( RegCmd ${RegisterImagesDIR}RegisterImages --initialization CentersOfMass --registration PipelineAffine --metric MattesMI ${ImageToRegTo} ${TemplateFile} --saveTransform ${TRANSFORM} --resampledImage ${REGIMG} )
+  echo( ${RegCmd} )
+  run( output ${RegCmd} )
+  echo( ${output} )
+  Set( DeformationField ${atlasProcessDir}/displacementFieldOldAtlas.nrrd )
+  Set( WarpCmd ${BRAINSDemonWarpDIR}BRAINSDemonWarp -f ${ImageToRegTo} -m ${TemplateFile} -O ${DeformationField} --initializeWithTransform ${TRANSFORM} -e --numberOfMatchPoints 50 --numberOfHistogramBins 1024 --minimumMovingPyramid 4,4,4 --minimumFixedPyramid 4,4,4 -n 3 -i 100,50,40 --upperThresholdForBOBF 3000 --registrationFilterType SymmetricLogDemons )
+  Run( output ${WarpCmd} )
+  echo( ${output} )
+  set( resampleCmd ${ResampleVolume2DIR}ResampleVolume2 ${PARCELLATIONFile} ${outputDir}/${PARCELLATION_FILE_TAG}.${extension} -H ${DeformationField} -i nn -R ${ImageToRegTo} --hfieldtype displacement )
+  echo( ${resampleCmd} )
+  run( output ${resampleCmd} )
+  echo( ${output} )
+
+ELSE(${TRANSF_TYPE} == 0)
+
+  IF(${TRANSF_TYPE} == 1)
+    set( TRANSFORM ${atlasProcessDir}/OldtoNewMDAtlas.txt )
+    set( REGIMG ${atlasProcessDir}/OldtoNewMDAtlas.${extension} )
+    set( RegCmd ${RegisterImagesDIR}RegisterImages --initialization CentersOfMass --registration PipelineBSpline --metric MattesMI ${ImageToRegTo} ${TemplateFile} --saveTransform ${TRANSFORM} --resampledImage ${REGIMG} )
+    echo( ${RegCmd} )
+    run( output ${RegCmd} )
+    echo( ${output} )
+    set( resampleCmd ${ResampleVolume2DIR}ResampleVolume2 ${PARCELLATIONFile} ${outputDir}/${PARCELLATION_FILE_TAG}.${extension} -i nn -R ${ImageToRegTo} -f ${TRANSFORM})
+    echo( ${resampleCmd} )
+    run( output ${resampleCmd} )
+    echo( ${output} ) 
+  ELSE(${TRANSF_TYPE} == 1)
+    IF(${TRANSF_TYPE} == 42)
+      echo('the answer')
+    ENDIF(${TRANSF_TYPE} == 42)
+  ENDIF(${TRANSF_TYPE} == 1)
+ENDIF(${TRANSF_TYPE} == 0)
+
+
+########################################## 
+#END OF FILE : ../src/030ComputeAtlas.bms
+########################################## 
+
+
+
+########################################## 
+#END OF FILE : ../src/000MakeAtlas.bms
+########################################## 
+

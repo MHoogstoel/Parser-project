@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 2.6)
+project (Parser)
+
+set(Parser_src
+ main.cpp
+)
+
+ # find_package(Slicer3 REQUIRED)
+ # include(${Slicer3_USE_FILE})
+
+add_executable(Parser ${Parser_src})
+#target_link_libraries(CreateMRML ${Slicer3_Libs_LIBRARIES} )
+
